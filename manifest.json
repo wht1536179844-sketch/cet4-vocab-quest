@@ -1,0 +1,17 @@
+{
+  "name": "四级高频词闯关 · CET-4 Quest",
+  "short_name": "四级词王",
+  "description": "随时随地打开手机就能背的四级高频词闯关网页",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F4F6FB",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

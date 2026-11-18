@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4F46E5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="四级词王" />
+  <title>四级高频词闯关 · CET-4 Quest</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- Top Status Bar -->
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-badge">CET-4</span>
+        <span class="brand-title">高频词闯关</span>
+      </div>
+      <div class="status-pills">
+        <span class="pill pill-streak" title="连续学习天数">🔥 <b id="hdr-streak">1</b></span>
+        <span class="pill pill-xp" title="累计经验值">⚡ <b id="hdr-xp">0</b></span>
+        <span class="pill pill-mastered" title="已掌握词汇">✓ <b id="hdr-mastered">0</b>/<b id="hdr-total">1500</b></span>
+        <button id="btn-sound" class="icon-btn" aria-label="开关音效" title="开关音效">🔊</button>
+        <button id="btn-theme" class="icon-btn" aria-label="切换深色模式" title="切换深色模式">🌙</button>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Viewport -->
+    <main class="main-content">
+      <!-- View 1: Stage Map -->
+      <section id="view-map" class="view active">
+        <div class="hero-card">
+          <div class="hero-top">
+            <div>
+              <div class="hero-eyebrow">2026.06–2020.07 四级阅读真题剖析 · 每关 15 词</div>
+              <h1 class="hero-title" id="hero-next-title">第 1 关 · 词频 #1-15</h1>
+              <p class="hero-sub" id="hero-next-sub">完成闯关解锁下一站，错词自动进复盘本</p>
+            </div>
+            <div class="hero-ring" id="hero-ring">
+              <span id="hero-pct">0%</span>
+            </div>
+          </div>
+
+          <div class="daily-bar-wrap">
+            <div class="daily-bar-label">
+              <span>今日目标进度</span>
+              <span id="daily-goal-text">0 / 10 词</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="daily-goal-fill" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <button id="btn-continue-quest" class="btn btn-primary btn-tactile">
+              继续闯关 ⚡
+            </button>
+            <button id="btn-blitz-quest" class="btn btn-secondary btn-tactile">
+              随机 15 词速刷 🎲
+            </button>
+          </div>
+        </div>
+
+        <div id="chapter-quick-nav" class="chip-scroll chapter-quick-nav"></div>
+
+        <!-- Chapters & Levels injected by JS -->
+        <div id="chapters-container" class="chapters-container"></div>
+      </section>
+
+      <!-- View 2: Pocket Flashcards ("随时打开可以看") -->
+      <section id="view-flashcards" class="view">
+        <div class="fc-controls">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input id="fc-search" type="search" placeholder="搜索英文单词或中文释义..." autocomplete="off" />
+          </div>
+          <div class="fc-toolbar">
+            <div class="chip-scroll" id="fc-filter-chips">
+              <button class="chip active" data-filter="all" id="chip-all-label">全部 (1500)</button>
+              <button class="chip" data-filter="unmastered">待掌握</button>
+              <button class="chip" data-filter="mastered">已斩词</button>
+              <button class="chip" data-filter="mistakes">错词</button>
+            </div>
+            <div class="mode-switch">
+              <button id="btn-fc-mode-card" class="mode-btn active" title="翻转卡片">词卡</button>
+              <button id="btn-fc-mode-list" class="mode-btn" title="列表速览">速览</button>
+            </div>
+          </div>
+          <div class="fc-level-row">
+            <label for="fc-level-select" class="fc-level-label">按关卡：</label>
+            <select id="fc-level-select" class="select-input">
+              <option value="all">全部 100 关（1500 词）</option>
+            </select>
+            <span class="fc-count-badge" id="fc-count-badge">1500 词</span>
+          </div>
+        </div>
+
+        <!-- Flashcard Flip Mode -->
+        <div id="fc-card-stage" class="fc-card-stage">
+          <div class="fc-nav-meta">
+            <span id="fc-index-indicator">1 / 1500</span>
+            <button id="btn-fc-shuffle" class="text-btn">🔀 随机打乱</button>
+          </div>
+
+          <div class="flip-card-wrap" id="flip-card-wrap">
+            <div class="flip-card" id="flip-card">
+              <!-- Front -->
+              <div class="flip-face flip-front">
+                <div class="fc-card-top">
+                  <span class="fc-badge" id="fc-level-badge">Lv.1</span>
+                  <span class="fc-freq" id="fc-freq">高频 ★★★</span>
+                </div>
+                <div class="fc-word-main">
+                  <div class="fc-word" id="fc-word">abandon</div>
+                  <div class="fc-phonetic-row">
+                    <span class="fc-phonetic" id="fc-phonetic">/əˈbændən/</span>
+                    <button id="btn-fc-speak" class="speak-pill" type="button">🔊 发音</button>
+                  </div>
+                </div>
+                <div class="fc-tap-hint">轻触卡片翻面看释义与真题例句 ↻</div>
+              </div>
+
+              <!-- Back -->
+              <div class="flip-face flip-back">
+                <div class="fc-card-top">
+                  <span class="fc-badge" id="fc-back-word">abandon</span>
+                  <button id="btn-fc-speak-back" class="speak-pill small" type="button">🔊</button>
+                </div>
+                <div class="fc-meaning-box">
+                  <span class="fc-pos" id="fc-pos">v.</span>
+                  <span class="fc-meaning" id="fc-meaning">放弃；抛弃；遗弃</span>
+                </div>
+                <div class="fc-tip-box" id="fc-tip">搭配：abandon the plan</div>
+                <div class="fc-example-box">
+                  <div class="fc-example-en" id="fc-example">Never abandon your dreams.</div>
+                  <div class="fc-example-zh" id="fc-translation">切勿放弃你的梦想。</div>
+                </div>
+                <div class="fc-tap-hint">再次轻触翻回正面 ↻</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fc-bottom-actions">
+            <button id="btn-fc-prev" class="btn btn-ghost btn-tactile" title="上一张">←</button>
+            <button id="btn-fc-forgot" class="btn btn-danger-soft btn-tactile">没记住 · 入错题</button>
+            <button id="btn-fc-master" class="btn btn-success btn-tactile">已掌握 ✓</button>
+            <button id="btn-fc-next" class="btn btn-ghost btn-tactile" title="下一张">→</button>
+          </div>
+        </div>
+
+        <!-- Quick List Mode -->
+        <div id="fc-list-stage" class="fc-list-stage hidden"></div>
+      </section>
+
+      <!-- View 3: Mistake Book -->
+      <section id="view-mistakes" class="view">
+        <div class="section-header-card">
+          <div>
+            <h2>错题突击本</h2>
+            <p id="mistakes-summary">答错或手动标红的词会聚集在这里，答对一次即可清出</p>
+          </div>
+          <button id="btn-practice-mistakes" class="btn btn-primary btn-tactile">
+            错题闯关 ⚡
+          </button>
+        </div>
+        <div id="mistakes-list" class="word-list-cards"></div>
+      </section>
+
+      <!-- View 4: Stats & Settings -->
+      <section id="view-stats" class="view">
+        <div class="stats-grid">
+          <div class="stat-tile">
+            <div class="stat-val" id="stat-mastered">0</div>
+            <div class="stat-lbl">已掌握单词</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val" id="stat-stars">0 / 300</div>
+            <div class="stat-lbl">关卡总星数</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val" id="stat-accuracy">0%</div>
+            <div class="stat-lbl">累计准确率</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-val" id="stat-combo">0</div>
+            <div class="stat-lbl">最高连击数</div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h3>篇章进度</h3>
+          <div id="chapter-stats-bars" class="chapter-stats-bars"></div>
+        </div>
+
+        <div class="panel-card">
+          <h3>学习偏好与解锁</h3>
+          <label class="setting-row">
+            <div>
+              <div class="setting-title">自动朗读英文发音</div>
+              <div class="setting-desc">进入词卡或看词选义题时自动发音</div>
+            </div>
+            <input type="checkbox" id="opt-auto-speak" class="toggle-switch" checked />
+          </label>
+          <label class="setting-row">
+            <div>
+              <div class="setting-title">开启全部 100 个关卡</div>
+              <div class="setting-desc">无需逐关解锁，随时跳关挑战任意高频词组</div>
+            </div>
+            <input type="checkbox" id="opt-unlock-all" class="toggle-switch" />
+          </label>
+          <label class="setting-row">
+            <div>
+              <div class="setting-title">每日目标词数</div>
+              <div class="setting-desc">用于首页进度条激励</div>
+            </div>
+            <select id="opt-daily-goal" class="select-input compact">
+              <option value="10">10 词</option>
+              <option value="20">20 词</option>
+              <option value="30">30 词</option>
+              <option value="50">50 词</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="panel-card">
+          <h3>添加到手机桌面 & 数据备份</h3>
+          <p class="panel-note">
+            在手机浏览器点击「分享 / 更多菜单 → 添加到主屏幕」，即可像原生 App 一样随时秒开，支持离线保存进度。
+          </p>
+          <div class="backup-actions">
+            <button id="btn-export-data" class="btn btn-secondary btn-tactile">导出进度备份</button>
+            <label class="btn btn-secondary btn-tactile file-btn">
+              导入恢复
+              <input type="file" id="input-import-data" accept="application/json" hidden />
+            </label>
+            <button id="btn-reset-data" class="btn btn-danger-soft btn-tactile">清空进度</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Tab Navigation -->
+    <nav class="bottom-nav" aria-label="主导航">
+      <button class="nav-item active" data-view="map">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">闯关</span>
+      </button>
+      <button class="nav-item" data-view="flashcards">
+        <span class="nav-icon">🃏</span>
+        <span class="nav-label">词卡</span>
+      </button>
+      <button class="nav-item" data-view="mistakes">
+        <span class="nav-icon">📕</span>
+        <span class="nav-label">错题 <em id="nav-mistake-badge" class="badge hidden">0</em></span>
+      </button>
+      <button class="nav-item" data-view="stats">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">战绩</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Stage Preview Sheet Modal -->
+  <div id="modal-preview" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="sheet-modal">
+      <div class="sheet-header">
+        <div>
+          <span class="sheet-tag" id="preview-tag">第 1 关</span>
+          <h2 id="preview-title">启程高频</h2>
+          <p id="preview-desc">本关共 10 个四级高频词</p>
+        </div>
+        <button id="btn-close-preview" class="close-circle" aria-label="关闭">✕</button>
+      </div>
+      <div id="preview-words-list" class="preview-words-list"></div>
+      <div class="sheet-footer">
+        <button id="btn-preview-flashcards" class="btn btn-secondary btn-tactile">先看词卡 🃏</button>
+        <button id="btn-preview-start" class="btn btn-primary btn-tactile">开始闯关 ⚡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quiz Arena Overlay -->
+  <div id="overlay-quiz" class="quiz-overlay hidden" role="dialog" aria-modal="true">
+    <div class="quiz-shell">
+      <header class="quiz-header">
+        <button id="btn-quiz-exit" class="icon-btn" aria-label="退出闯关">✕</button>
+        <div class="quiz-progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill quiz" id="quiz-progress-fill" style="width: 0%"></div>
+          </div>
+          <span class="quiz-step-text" id="quiz-step-text">1 / 10</span>
+        </div>
+        <div class="quiz-status-right">
+          <span class="combo-pill hidden" id="quiz-combo-pill">🔥 x2</span>
+          <span class="hearts-pill" id="quiz-hearts">❤️❤️❤️</span>
+        </div>
+      </header>
+
+      <div class="quiz-body">
+        <div class="quiz-type-badge" id="quiz-type-badge">看词选义</div>
+        <div class="quiz-prompt-card" id="quiz-prompt-card">
+          <!-- Injected dynamically -->
+        </div>
+        <div class="quiz-options" id="quiz-options">
+          <!-- 4 option buttons injected dynamically -->
+        </div>
+      </div>
+
+      <!-- Instant Feedback Drawer -->
+      <div id="quiz-feedback" class="quiz-feedback hidden">
+        <div class="fb-top">
+          <div class="fb-status" id="fb-status">✓ 回答正确！</div>
+          <button id="fb-speak-btn" class="speak-pill small" type="button">🔊 朗读</button>
+        </div>
+        <div class="fb-word-line">
+          <strong id="fb-word">abandon</strong>
+          <span id="fb-phonetic">/əˈbændən/</span>
+          <span id="fb-meaning">v. 放弃；抛弃</span>
+        </div>
+        <div class="fb-tip" id="fb-tip"></div>
+        <div class="fb-example" id="fb-example"></div>
+        <button id="btn-quiz-next" class="btn btn-primary btn-full btn-tactile">继续下一题 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage Result Overlay -->
+  <div id="overlay-result" class="quiz-overlay hidden" role="dialog" aria-modal="true">
+    <div class="result-shell">
+      <div class="result-card">
+        <div class="result-stars" id="result-stars">★★★</div>
+        <h2 id="result-title">闯关成功！</h2>
+        <p id="result-subtitle">本关 10 个核心词已掌握</p>
+
+        <div class="result-metrics">
+          <div class="metric-box">
+            <span class="metric-val" id="res-xp">+120</span>
+            <span class="metric-lbl">获得经验</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-val" id="res-acc">100%</span>
+            <span class="metric-lbl">准确率</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-val" id="res-combo">x8</span>
+            <span class="metric-lbl">最高连击</span>
+          </div>
+        </div>
+
+        <div id="result-wrong-box" class="result-wrong-box hidden">
+          <div class="result-wrong-title">本关错词（已自动收入错题本）：</div>
+          <div id="result-wrong-chips" class="result-wrong-chips"></div>
+        </div>
+
+        <div class="result-actions">
+          <button id="btn-res-next" class="btn btn-primary btn-full btn-tactile">挑战下一关 →</button>
+          <div class="result-sub-actions">
+            <button id="btn-res-retry" class="btn btn-secondary btn-tactile">再刷一次 ↻</button>
+            <button id="btn-res-home" class="btn btn-ghost btn-tactile">返回地图</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="data/words.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
