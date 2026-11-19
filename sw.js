@@ -1,10 +1,11 @@
-const CACHE_NAME = "cet4-quest-v2";
+const CACHE_NAME = "cet4-quest-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./data/words.js",
+  "./data/mini_dict.js",
   "./manifest.json",
   "./icon.svg"
 ];

@@ -660,7 +660,7 @@ html, body {
 .flip-card {
   position: relative;
   width: 100%;
-  min-height: 310px;
+  min-height: 365px;
   transform-style: preserve-3d;
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
@@ -678,15 +678,45 @@ html, body {
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 22px;
-  padding: 18px;
+  padding: 16px;
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow-y: auto;
 }
 
 .flip-back {
   transform: rotateY(180deg);
+  gap: 8px;
+}
+
+.fc-card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fav-star-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.fav-star-btn.active {
+  background: var(--amber-soft);
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 .fc-card-top {
@@ -750,6 +780,41 @@ html, body {
 .speak-pill.small {
   padding: 4px 9px;
   font-size: 12px;
+}
+
+.speak-pill.mini {
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+.speak-pill.is-fav {
+  background: var(--amber-soft);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.fc-example-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.fc-example-btns {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.exam-src-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 2px 7px;
+  border-radius: 6px;
 }
 
 .fc-tap-hint {
@@ -1008,7 +1073,7 @@ html, body {
   background: var(--surface);
   border-top: 1px solid var(--border);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   z-index: 40;
 }
 
@@ -1050,6 +1115,16 @@ html, body {
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 999px;
+}
+
+.badge-amber {
+  background: var(--amber);
+}
+
+.fav-subtabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 /* Preview Sheet Modal */
@@ -1570,4 +1645,169 @@ html, body {
   z-index: 200;
   box-shadow: var(--shadow-md);
   white-space: nowrap;
+}
+
+/* Interactive Sentence Tap-to-Translate */
+.tap-word {
+  display: inline;
+  background: none;
+  border: none;
+  border-bottom: 1.5px dotted rgba(99, 102, 241, 0.45);
+  color: inherit;
+  font: inherit;
+  padding: 0 1px;
+  margin: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tap-word:hover,
+.tap-word.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tap-hint-inline {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Word Lookup Popover */
+.word-lookup-pop {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom));
+  width: calc(100% - 24px);
+  max-width: 456px;
+  background: var(--surface);
+  border: 2px solid var(--primary);
+  border-radius: 18px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-md);
+  z-index: 160;
+  animation: slideUp 0.16s ease;
+}
+
+.wlp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.wlp-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wlp-title strong {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--primary);
+}
+
+.wlp-phonetic {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.wlp-base {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--success-dark);
+  background: var(--success-soft);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.wlp-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.wlp-close {
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wlp-meaning {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.wlp-pos {
+  color: var(--primary);
+  margin-right: 4px;
+}
+
+/* Zero-foundation Sentence Cloze Target Box */
+.q-target-cn-box {
+  background: var(--amber-soft);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.q-target-cn-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--amber);
+  margin-bottom: 2px;
+}
+
+.q-target-cn-val {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.q-helper-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.q-letter-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 5px 10px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.fb-top-btns {
+  display: flex;
+  gap: 5px;
+}
+
+.fb-example-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
 }

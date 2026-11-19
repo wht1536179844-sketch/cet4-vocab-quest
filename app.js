@@ -5,8 +5,10 @@
   const WORDS = window.CET4_WORDS || [];
   const LEVELS = window.CET4_LEVELS || [];
   const CHAPTERS = window.CET4_CHAPTERS || [];
+  const MINI_DICT = window.CET4_MINI_DICT || {};
 
   const WORDS_BY_ID = new Map(WORDS.map((w) => [w.id, w]));
+  const WORDS_BY_WORD = new Map(WORDS.map((w) => [w.word.toLowerCase(), w]));
 
   const defaultState = () => ({
     xp: 0,
@@ -20,6 +22,8 @@
     masteredIds: [],     // [wordId]
     mistakeIds: [],      // [wordId]
     mistakeCounts: {},   // { [wordId]: number }
+    favoriteWords: [],     // [{ word, phonetic, pos, meaning, cet4Id? }]
+    favoriteSentences: [], // [{ en, zh, source, focusWord }]
     totalAnswered: 0,
     totalCorrect: 0,
     bestCombo: 0,
@@ -262,11 +266,210 @@
     } else {
       badge.classList.add("hidden");
     }
+
+    const favBadge = document.getElementById("nav-fav-badge");
+    const totalFavs = (state.favoriteWords?.length || 0) + (state.favoriteSentences?.length || 0);
+    if (favBadge) {
+      if (totalFavs > 0) {
+        favBadge.textContent = totalFavs;
+        favBadge.classList.remove("hidden");
+      } else {
+        favBadge.classList.add("hidden");
+      }
+    }
+  }
+
+  // ===== Favorites & Sentence Word Lookup Helpers =====
+  function isWordFavorited(wordStr) {
+    const low = String(wordStr || "").toLowerCase();
+    return (state.favoriteWords || []).some((x) => x.word.toLowerCase() === low);
+  }
+
+  function toggleFavoriteWord(entry) {
+    if (!state.favoriteWords) state.favoriteWords = [];
+    const low = String(entry.word || "").toLowerCase();
+    const exists = state.favoriteWords.some((x) => x.word.toLowerCase() === low);
+    if (exists) {
+      state.favoriteWords = state.favoriteWords.filter((x) => x.word.toLowerCase() !== low);
+      showToast(`已取消收藏单词：${entry.word}`);
+    } else {
+      state.favoriteWords.unshift({
+        word: entry.word,
+        phonetic: entry.phonetic || "",
+        pos: entry.pos || "",
+        meaning: entry.meaning || "",
+        cet4Id: entry.id || entry.cet4Id || null
+      });
+      showToast(`已收藏单词 ⭐ ${entry.word}`);
+    }
+    saveState();
+    updateHeaderAndBadges();
+    return !exists;
+  }
+
+  function isSentenceFavorited(enStr) {
+    return (state.favoriteSentences || []).some((s) => s.en === enStr);
+  }
+
+  function toggleFavoriteSentence(item) {
+    if (!state.favoriteSentences) state.favoriteSentences = [];
+    const exists = state.favoriteSentences.some((s) => s.en === item.en);
+    if (exists) {
+      state.favoriteSentences = state.favoriteSentences.filter((s) => s.en !== item.en);
+      showToast("已取消收藏该句子");
+    } else {
+      state.favoriteSentences.unshift({
+        en: item.en,
+        zh: item.zh || "",
+        source: item.source || "四级真题例句",
+        focusWord: item.focusWord || ""
+      });
+      showToast("已收藏真题句子 ⭐");
+    }
+    saveState();
+    updateHeaderAndBadges();
+    return !exists;
+  }
+
+  function lookupTapWord(rawToken) {
+    const clean = String(rawToken || "").replace(/[’‘]/g, "'").trim();
+    const low = clean.toLowerCase();
+
+    const fromCet4 = (w) => {
+      const obj = WORDS_BY_WORD.get(w);
+      if (!obj) return null;
+      return {
+        displayWord: clean,
+        phonetic: obj.phonetic,
+        pos: obj.pos,
+        meaning: obj.meaning,
+        base: w !== low ? obj.word : "",
+        cet4WordObj: obj
+      };
+    };
+
+    const fromMini = (w, explicitBase = "") => {
+      const arr = MINI_DICT[w];
+      if (!arr) return null;
+      const base = explicitBase || arr[3] || "";
+      const cet4Obj = WORDS_BY_WORD.get(base || w) || null;
+      return {
+        displayWord: clean,
+        phonetic: arr[0] || (cet4Obj ? cet4Obj.phonetic : ""),
+        pos: arr[1] || (cet4Obj ? cet4Obj.pos : ""),
+        meaning: arr[2] || (cet4Obj ? cet4Obj.meaning : ""),
+        base,
+        cet4WordObj: cet4Obj
+      };
+    };
+
+    if (MINI_DICT[low]) return fromMini(low);
+    if (WORDS_BY_WORD.has(low)) return fromCet4(low);
+
+    // Strip common inflections for tokens not directly in MINI_DICT
+    const cands = [];
+    if (low.endsWith("'s")) cands.push(low.slice(0, -2));
+    if (low.endsWith("ies") && low.length > 4) cands.push(low.slice(0, -3) + "y");
+    if (low.endsWith("ied") && low.length > 4) cands.push(low.slice(0, -3) + "y");
+    if (low.endsWith("ing") && low.length > 5) {
+      cands.push(low.slice(0, -3), low.slice(0, -3) + "e");
+      if (low.length > 6 && low[low.length - 4] === low[low.length - 5]) cands.push(low.slice(0, -4));
+    }
+    if (low.endsWith("ed") && low.length > 4) {
+      cands.push(low.slice(0, -2), low.slice(0, -1));
+      if (low.length > 5 && low[low.length - 3] === low[low.length - 4]) cands.push(low.slice(0, -3));
+    }
+    if (low.endsWith("es") && low.length > 4) cands.push(low.slice(0, -2), low.slice(0, -1));
+    if (low.endsWith("s") && low.length > 3) cands.push(low.slice(0, -1));
+    if (low.endsWith("ly") && low.length > 4) cands.push(low.slice(0, -2), low.slice(0, -2) + "e");
+
+    for (const c of cands) {
+      if (MINI_DICT[c]) return fromMini(c, c);
+      if (WORDS_BY_WORD.has(c)) return fromCet4(c);
+    }
+
+    return {
+      displayWord: clean,
+      phonetic: "",
+      pos: "",
+      meaning: "人名/专有名词或特殊写法，可点击右侧按钮听发音",
+      base: "",
+      cet4WordObj: null
+    };
+  }
+
+  function buildInteractiveSentenceHTML(sentence, opts = {}) {
+    const skipBlank = !!opts.skipBlank;
+    const text = String(sentence || "");
+    const parts = text.split(/(______|[A-Za-z]+(?:['’][A-Za-z]+)?)/g);
+    return parts
+      .map((part) => {
+        if (!part) return "";
+        if (skipBlank && part === "______") {
+          return `<span class="q-blank">______</span>`;
+        }
+        if (/^[A-Za-z]+(?:['’][A-Za-z]+)?$/.test(part)) {
+          return `<button type="button" class="tap-word" data-tap="${esc(part)}">${esc(part)}</button>`;
+        }
+        return esc(part);
+      })
+      .join("");
+  }
+
+  let activeTapBtn = null;
+  let currentLookupItem = null;
+
+  function closeWordLookup() {
+    document.getElementById("word-lookup-pop").classList.add("hidden");
+    if (activeTapBtn) {
+      activeTapBtn.classList.remove("active");
+      activeTapBtn = null;
+    }
+    currentLookupItem = null;
+  }
+
+  function openWordLookup(rawWord, btnEl) {
+    const info = lookupTapWord(rawWord);
+    if (activeTapBtn) activeTapBtn.classList.remove("active");
+    activeTapBtn = btnEl;
+    if (btnEl) btnEl.classList.add("active");
+
+    currentLookupItem = info;
+    document.getElementById("wlp-word").textContent = info.displayWord;
+    document.getElementById("wlp-phonetic").textContent = info.phonetic || "";
+    const baseEl = document.getElementById("wlp-base");
+    if (info.base && info.base.toLowerCase() !== info.displayWord.toLowerCase()) {
+      baseEl.textContent = `原形: ${info.base}`;
+      baseEl.classList.remove("hidden");
+    } else {
+      baseEl.classList.add("hidden");
+    }
+    document.getElementById("wlp-pos").textContent = info.pos ? `${info.pos} ` : "";
+    document.getElementById("wlp-cn").textContent = info.meaning;
+
+    const favWord = info.cet4WordObj ? info.cet4WordObj.word : (info.base || info.displayWord);
+    const favBtn = document.getElementById("wlp-fav");
+    const isFav = isWordFavorited(favWord);
+    favBtn.textContent = isFav ? "⭐ 已收藏" : "☆ 收藏";
+    favBtn.classList.toggle("is-fav", isFav);
+
+    const errBtn = document.getElementById("wlp-add-mistake");
+    if (info.cet4WordObj) {
+      errBtn.classList.remove("hidden");
+      const inErr = state.mistakeIds.includes(info.cet4WordObj.id);
+      errBtn.textContent = inErr ? "✓ 已在错题" : "+ 错题";
+    } else {
+      errBtn.classList.add("hidden");
+    }
+
+    document.getElementById("word-lookup-pop").classList.remove("hidden");
+    if (state.settings.autoSpeak) speakWord(info.displayWord);
   }
 
   // ===== View Navigation =====
   let activeView = "map";
   function switchView(viewName) {
+    closeWordLookup();
     activeView = viewName;
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
     document.getElementById(`view-${viewName}`).classList.add("active");
@@ -275,6 +478,7 @@
     });
     if (viewName === "map") renderMap();
     if (viewName === "flashcards") renderFlashcards();
+    if (viewName === "favorites") renderFavorites();
     if (viewName === "mistakes") renderMistakes();
     if (viewName === "stats") renderStats();
   }
@@ -530,8 +734,23 @@
     document.getElementById("fc-pos").textContent = w.pos;
     document.getElementById("fc-meaning").textContent = w.meaning;
     document.getElementById("fc-tip").textContent = `💡 ${w.tip}`;
-    document.getElementById("fc-example").textContent = w.example;
+    document.getElementById("fc-example-src").textContent = w.exampleSource || "四级真题例句";
+    document.getElementById("fc-example").innerHTML = buildInteractiveSentenceHTML(w.example);
     document.getElementById("fc-translation").textContent = w.translation;
+
+    const wFav = isWordFavorited(w.word);
+    ["btn-fc-fav-front", "btn-fc-fav-back"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = wFav ? "★" : "☆";
+      el.classList.toggle("active", wFav);
+    });
+    const sFav = isSentenceFavorited(w.example);
+    const sBtn = document.getElementById("btn-fc-fav-sent");
+    if (sBtn) {
+      sBtn.textContent = sFav ? "⭐ 已藏句" : "☆ 藏句";
+      sBtn.classList.toggle("is-fav", sFav);
+    }
 
     if (autoPronounce && state.settings.autoSpeak) {
       speakWord(w.word);
@@ -551,6 +770,8 @@
     const slice = list.slice(0, fcListLimit);
     slice.forEach((w) => {
       const mastered = state.masteredIds.includes(w.id);
+      const wFav = isWordFavorited(w.word);
+      const sFav = isSentenceFavorited(w.example);
       const card = document.createElement("div");
       card.className = "word-row-card";
       card.innerHTML = `
@@ -565,16 +786,33 @@
           </div>
           <div class="word-row-actions">
             <button class="speak-pill small js-speak" type="button">🔊</button>
+            <button class="speak-pill small js-fav-word ${wFav ? "is-fav" : ""}" type="button">${wFav ? "★" : "☆"}</button>
             <button class="speak-pill small js-toggle-master" type="button">${mastered ? "✓ 已斩" : "斩词"}</button>
           </div>
         </div>
         <div class="word-row-extra">
           <div>💡 ${esc(w.tip)}</div>
-          <div style="margin-top:4px">${esc(w.example)}</div>
-          <div>${esc(w.translation)}</div>
+          <div class="fc-example-head" style="margin-top:6px">
+            <span class="exam-src-tag">${esc(w.exampleSource || "真题例句")}</span>
+            <div class="fc-example-btns">
+              <button class="speak-pill mini js-speak-sent" type="button">🔊 读句</button>
+              <button class="speak-pill mini js-fav-sent ${sFav ? "is-fav" : ""}" type="button">${sFav ? "⭐ 已藏句" : "☆ 藏句"}</button>
+            </div>
+          </div>
+          <div style="margin-top:4px;color:var(--text);font-weight:600">${buildInteractiveSentenceHTML(w.example)}</div>
+          <div style="margin-top:2px">${esc(w.translation)}</div>
         </div>
       `;
       card.querySelector(".js-speak").addEventListener("click", () => speakWord(w.word));
+      card.querySelector(".js-speak-sent").addEventListener("click", () => speakWord(w.example));
+      card.querySelector(".js-fav-word").addEventListener("click", () => {
+        toggleFavoriteWord(w);
+        renderFlashcardList(getFilteredFlashcards());
+      });
+      card.querySelector(".js-fav-sent").addEventListener("click", () => {
+        toggleFavoriteSentence({ en: w.example, zh: w.translation, source: w.exampleSource || "真题例句", focusWord: w.word });
+        renderFlashcardList(getFilteredFlashcards());
+      });
       card.querySelector(".js-toggle-master").addEventListener("click", () => {
         if (state.masteredIds.includes(w.id)) {
           state.masteredIds = state.masteredIds.filter((id) => id !== w.id);
@@ -603,7 +841,103 @@
     }
   }
 
-  // ===== View 3: Mistake Book =====
+  // ===== View 3: Favorites =====
+  let activeFavTab = "words"; // "words" | "sentences"
+
+  function renderFavorites() {
+    updateHeaderAndBadges();
+    const favWords = state.favoriteWords || [];
+    const favSents = state.favoriteSentences || [];
+
+    document.getElementById("fav-tab-words").textContent = `收藏单词 (${favWords.length})`;
+    document.getElementById("fav-tab-sentences").textContent = `收藏句子 (${favSents.length})`;
+    document.querySelectorAll("[data-favtab]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.favtab === activeFavTab);
+    });
+
+    const btnPractice = document.getElementById("btn-practice-favorites");
+    btnPractice.disabled = favWords.length === 0;
+    btnPractice.style.opacity = favWords.length === 0 ? "0.5" : "1";
+
+    document.getElementById("favorites-summary").textContent =
+      `已收藏 ${favWords.length} 个单词 · ${favSents.length} 句真题例句`;
+
+    const listEl = document.getElementById("favorites-list");
+    listEl.innerHTML = "";
+
+    if (activeFavTab === "words") {
+      if (favWords.length === 0) {
+        listEl.innerHTML = `<div class="empty-state">还没有收藏单词 ⭐<br/>在词卡、解析或点击句子查词时点「☆ 收藏」即可添加！</div>`;
+        return;
+      }
+      favWords.forEach((fw) => {
+        const fullObj = (fw.cet4Id && WORDS_BY_ID.get(fw.cet4Id)) || WORDS_BY_WORD.get(fw.word.toLowerCase());
+        const card = document.createElement("div");
+        card.className = "word-row-card";
+        card.innerHTML = `
+          <div class="word-row-head">
+            <div>
+              <div class="word-row-title">
+                <strong>${esc(fw.word)}</strong>
+                <span>${esc(fw.phonetic || (fullObj ? fullObj.phonetic : ""))}</span>
+                ${fullObj ? `<span>Lv.${fullObj.level}</span>` : ""}
+              </div>
+              <div class="word-row-meaning">${esc(fw.pos || (fullObj ? fullObj.pos : ""))} ${esc(fw.meaning || (fullObj ? fullObj.meaning : ""))}</div>
+            </div>
+            <div class="word-row-actions">
+              <button class="speak-pill small js-speak" type="button">🔊</button>
+              <button class="speak-pill small js-unfav" type="button">移除</button>
+            </div>
+          </div>
+          ${fullObj ? `
+            <div class="word-row-extra">
+              <div><span class="exam-src-tag">${esc(fullObj.exampleSource || "真题例句")}</span></div>
+              <div style="margin-top:4px;color:var(--text);font-weight:600">${buildInteractiveSentenceHTML(fullObj.example)}</div>
+              <div>${esc(fullObj.translation)}</div>
+            </div>
+          ` : ""}
+        `;
+        card.querySelector(".js-speak").addEventListener("click", () => speakWord(fw.word));
+        card.querySelector(".js-unfav").addEventListener("click", () => {
+          toggleFavoriteWord(fw);
+          renderFavorites();
+        });
+        listEl.appendChild(card);
+      });
+      return;
+    }
+
+    if (favSents.length === 0) {
+      listEl.innerHTML = `<div class="empty-state">还没有收藏真题句子 ⭐<br/>翻开词卡背面或闯关看解析时，点击「☆ 藏句」即可收藏！</div>`;
+      return;
+    }
+    favSents.forEach((fs) => {
+      const card = document.createElement("div");
+      card.className = "word-row-card";
+      card.innerHTML = `
+        <div class="fc-example-head">
+          <div>
+            <span class="exam-src-tag">${esc(fs.source || "四级真题")}</span>
+            ${fs.focusWord ? `<span class="fc-badge" style="margin-left:4px">${esc(fs.focusWord)}</span>` : ""}
+          </div>
+          <div class="fc-example-btns">
+            <button class="speak-pill mini js-speak-sent" type="button">🔊 听整句</button>
+            <button class="speak-pill mini js-unfav-sent" type="button">移除</button>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:15px;font-weight:700;line-height:1.55">${buildInteractiveSentenceHTML(fs.en)}</div>
+        <div style="margin-top:6px;font-size:13px;color:var(--text-muted)">${esc(fs.zh)}</div>
+      `;
+      card.querySelector(".js-speak-sent").addEventListener("click", () => speakWord(fs.en));
+      card.querySelector(".js-unfav-sent").addEventListener("click", () => {
+        toggleFavoriteSentence(fs);
+        renderFavorites();
+      });
+      listEl.appendChild(card);
+    });
+  }
+
+  // ===== View 4: Mistake Book =====
   function renderMistakes() {
     updateHeaderAndBadges();
     const listEl = document.getElementById("mistakes-list");
@@ -626,29 +960,36 @@
     listEl.innerHTML = "";
     words.forEach((w) => {
       const count = state.mistakeCounts[w.id] || 1;
+      const wFav = isWordFavorited(w.word);
       const card = document.createElement("div");
       card.className = "word-row-card";
       card.innerHTML = `
         <div class="word-row-head">
           <div>
             <div class="word-row-title">
-              <strong>${w.word}</strong>
-              <span>${w.phonetic}</span>
+              <strong>${esc(w.word)}</strong>
+              <span>${esc(w.phonetic)}</span>
               <span style="color:var(--danger);font-weight:700;">错 ${count} 次</span>
             </div>
-            <div class="word-row-meaning">${w.pos} ${w.meaning}</div>
+            <div class="word-row-meaning">${esc(w.pos)} ${esc(w.meaning)}</div>
           </div>
           <div class="word-row-actions">
             <button class="speak-pill small js-speak" type="button">🔊</button>
+            <button class="speak-pill small js-fav ${wFav ? "is-fav" : ""}" type="button">${wFav ? "★" : "☆"}</button>
             <button class="speak-pill small js-clear" type="button">✓ 已会</button>
           </div>
         </div>
         <div class="word-row-extra">
-          <div>💡 ${w.tip}</div>
-          <div style="margin-top:4px">${w.example}</div>
+          <div>💡 ${esc(w.tip)}</div>
+          <div style="margin-top:6px;color:var(--text);font-weight:600">${buildInteractiveSentenceHTML(w.example)}</div>
+          <div style="margin-top:2px">${esc(w.translation)}</div>
         </div>
       `;
       card.querySelector(".js-speak").addEventListener("click", () => speakWord(w.word));
+      card.querySelector(".js-fav").addEventListener("click", () => {
+        toggleFavoriteWord(w);
+        renderMistakes();
+      });
       card.querySelector(".js-clear").addEventListener("click", () => {
         markMastered(w.id);
         saveState();
@@ -784,33 +1125,61 @@
     const optionsEl = document.getElementById("quiz-options");
     optionsEl.innerHTML = "";
 
+    closeWordLookup();
     const w = q.target;
 
     if (q.type === 0) {
       typeBadge.textContent = "看词选义";
       promptCard.innerHTML = `
-        <div class="q-main-word">${w.word}</div>
+        <div class="q-main-word">${esc(w.word)}</div>
         <div class="q-phonetic-row">
-          <span>${w.phonetic}</span>
+          <span>${esc(w.phonetic)}</span>
           <button id="q-speak-btn" class="speak-pill small" type="button">🔊 发音</button>
+          <button id="q-tip-btn" class="speak-pill small" type="button">💡 看考频提示</button>
         </div>
+        <div id="q-letter-hint" class="q-letter-hint hidden"></div>
       `;
       document.getElementById("q-speak-btn").addEventListener("click", () => speakWord(w.word));
+      document.getElementById("q-tip-btn").addEventListener("click", () => {
+        const hintEl = document.getElementById("q-letter-hint");
+        hintEl.textContent = `💡 ${w.tip}`;
+        hintEl.classList.remove("hidden");
+      });
       if (state.settings.autoSpeak) speakWord(w.word);
     } else if (q.type === 1) {
       typeBadge.textContent = "看义选词";
       const safeTip = w.tip.replace(new RegExp(escapeRegex(w.word), "gi"), "____");
       promptCard.innerHTML = `
-        <div class="q-meaning-prompt">${w.pos} ${w.meaning}</div>
-        <div class="q-hint-sub">💡 ${safeTip}</div>
+        <div class="q-target-cn-label">请根据中文意思选出对应英文单词</div>
+        <div class="q-meaning-prompt">${esc(w.pos)} ${esc(w.meaning)}</div>
+        <div class="q-hint-sub">💡 ${esc(safeTip)}</div>
       `;
     } else {
-      typeBadge.textContent = "真题语境填空";
-      const safeSentence = q.blanked.replace("______", `<span class="q-blank">______</span>`);
+      typeBadge.textContent = `真题语境填空 · ${w.exampleSource || "真题例句"}`;
+      const interactiveBlanked = buildInteractiveSentenceHTML(q.blanked, { skipBlank: true });
       promptCard.innerHTML = `
-        <div class="q-sentence">${safeSentence}</div>
-        <div class="q-sentence-zh">${w.translation}</div>
+        <div class="q-target-cn-box">
+          <div class="q-target-cn-label">空格要填单词的中文意思（零基础提示）</div>
+          <div class="q-target-cn-val">${esc(w.pos)} ${esc(w.meaning)}</div>
+        </div>
+        <div class="q-sentence">${interactiveBlanked}</div>
+        <div class="q-sentence-zh">整句译文：${esc(w.translation)}</div>
+        <div class="q-helper-row">
+          <span class="tap-hint-inline">💡 点击句子里任意单词可查中文</span>
+          <div style="display:flex;gap:6px">
+            <button id="q-speak-sent-btn" class="speak-pill mini" type="button">🔊 听整句</button>
+            <button id="q-hint-letter-btn" class="speak-pill mini" type="button">首字母提示</button>
+          </div>
+        </div>
+        <div id="q-letter-hint" class="q-letter-hint hidden"></div>
       `;
+      document.getElementById("q-speak-sent-btn").addEventListener("click", () => speakWord(w.example));
+      document.getElementById("q-hint-letter-btn").addEventListener("click", () => {
+        const hintEl = document.getElementById("q-letter-hint");
+        hintEl.textContent = `首字母提示：${w.word[0]}${"_".repeat(Math.max(2, w.word.length - 1))}（共 ${w.word.length} 字母） ${w.phonetic}`;
+        hintEl.classList.remove("hidden");
+        speakWord(w.word);
+      });
     }
 
     const keys = ["A", "B", "C", "D"];
@@ -891,8 +1260,38 @@
     document.getElementById("fb-phonetic").textContent = q.target.phonetic;
     document.getElementById("fb-meaning").textContent = `${q.target.pos} ${q.target.meaning}`;
     document.getElementById("fb-tip").textContent = `💡 ${q.target.tip}`;
-    document.getElementById("fb-example").textContent = `${q.target.example} ${q.target.translation}`;
+    document.getElementById("fb-example-src").textContent = q.target.exampleSource || "四级真题例句";
+    document.getElementById("fb-example").innerHTML = `${buildInteractiveSentenceHTML(q.target.example)} <span style="margin-left:4px">${esc(q.target.translation)}</span>`;
     document.getElementById("fb-speak-btn").onclick = () => speakWord(q.target.word);
+
+    const fbFavWord = document.getElementById("fb-fav-word");
+    const syncFbFavWord = () => {
+      const f = isWordFavorited(q.target.word);
+      fbFavWord.textContent = f ? "⭐ 已藏词" : "☆ 藏词";
+      fbFavWord.classList.toggle("is-fav", f);
+    };
+    syncFbFavWord();
+    fbFavWord.onclick = () => {
+      toggleFavoriteWord(q.target);
+      syncFbFavWord();
+    };
+
+    const fbFavSent = document.getElementById("fb-fav-sent");
+    const syncFbFavSent = () => {
+      const f = isSentenceFavorited(q.target.example);
+      fbFavSent.textContent = f ? "⭐ 已藏句" : "☆ 藏句";
+      fbFavSent.classList.toggle("is-fav", f);
+    };
+    syncFbFavSent();
+    fbFavSent.onclick = () => {
+      toggleFavoriteSentence({
+        en: q.target.example,
+        zh: q.target.translation,
+        source: q.target.exampleSource || "四级真题例句",
+        focusWord: q.target.word
+      });
+      syncFbFavSent();
+    };
 
     const nextBtn = document.getElementById("btn-quiz-next");
     if (s.hearts <= 0) {
@@ -1107,8 +1506,56 @@
 
     const flipCard = document.getElementById("flip-card");
     flipCard.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
+      if (e.target.closest("button") || e.target.closest(".tap-word")) return;
       flipCard.classList.toggle("flipped");
+    });
+
+    // Global delegation for tap-to-translate sentence words
+    document.addEventListener("click", (e) => {
+      const tapBtn = e.target.closest(".tap-word");
+      if (tapBtn) {
+        e.stopPropagation();
+        openWordLookup(tapBtn.dataset.tap, tapBtn);
+        return;
+      }
+      if (!e.target.closest("#word-lookup-pop")) {
+        const pop = document.getElementById("word-lookup-pop");
+        if (pop && !pop.classList.contains("hidden")) {
+          closeWordLookup();
+        }
+      }
+    });
+
+    document.getElementById("wlp-close").addEventListener("click", closeWordLookup);
+    document.getElementById("wlp-speak").addEventListener("click", () => {
+      if (currentLookupItem) speakWord(currentLookupItem.displayWord);
+    });
+    document.getElementById("wlp-fav").addEventListener("click", () => {
+      if (!currentLookupItem) return;
+      const item = currentLookupItem.cet4WordObj || {
+        word: currentLookupItem.base || currentLookupItem.displayWord,
+        phonetic: currentLookupItem.phonetic,
+        pos: currentLookupItem.pos,
+        meaning: currentLookupItem.meaning
+      };
+      const added = toggleFavoriteWord(item);
+      const favBtn = document.getElementById("wlp-fav");
+      favBtn.textContent = added ? "⭐ 已收藏" : "☆ 收藏";
+      favBtn.classList.toggle("is-fav", added);
+      if (activeView === "favorites") renderFavorites();
+    });
+    document.getElementById("wlp-add-mistake").addEventListener("click", () => {
+      if (!currentLookupItem || !currentLookupItem.cet4WordObj) return;
+      const obj = currentLookupItem.cet4WordObj;
+      if (state.mistakeIds.includes(obj.id)) {
+        showToast(`${obj.word} 已在错题本中`);
+      } else {
+        addMistake(obj.id);
+        saveState();
+        updateHeaderAndBadges();
+        showToast(`已将 ${obj.word} 加入错题本`);
+        document.getElementById("wlp-add-mistake").textContent = "✓ 已在错题";
+      }
     });
 
     // Touch swipe on flashcard
@@ -1134,6 +1581,73 @@
     };
     document.getElementById("btn-fc-speak").addEventListener("click", speakCurrentFc);
     document.getElementById("btn-fc-speak-back").addEventListener("click", speakCurrentFc);
+
+    const toggleCurrentFcFav = () => {
+      const list = getFilteredFlashcards();
+      const w = list[fcIndex];
+      if (!w) return;
+      const f = toggleFavoriteWord(w);
+      ["btn-fc-fav-front", "btn-fc-fav-back"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = f ? "★" : "☆";
+        el.classList.toggle("active", f);
+      });
+    };
+    document.getElementById("btn-fc-fav-front").addEventListener("click", toggleCurrentFcFav);
+    document.getElementById("btn-fc-fav-back").addEventListener("click", toggleCurrentFcFav);
+
+    document.getElementById("btn-fc-speak-sent").addEventListener("click", () => {
+      const list = getFilteredFlashcards();
+      if (list[fcIndex]) speakWord(list[fcIndex].example);
+    });
+
+    document.getElementById("btn-fc-fav-sent").addEventListener("click", () => {
+      const list = getFilteredFlashcards();
+      const w = list[fcIndex];
+      if (!w) return;
+      const f = toggleFavoriteSentence({
+        en: w.example,
+        zh: w.translation,
+        source: w.exampleSource || "四级真题例句",
+        focusWord: w.word
+      });
+      const btn = document.getElementById("btn-fc-fav-sent");
+      btn.textContent = f ? "⭐ 已藏句" : "☆ 藏句";
+      btn.classList.toggle("is-fav", f);
+    });
+
+    // Favorites view sub-tabs & practice
+    document.querySelectorAll("[data-favtab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeFavTab = btn.dataset.favtab;
+        renderFavorites();
+      });
+    });
+
+    document.getElementById("btn-practice-favorites").addEventListener("click", () => {
+      const favWords = state.favoriteWords || [];
+      if (favWords.length === 0) return;
+      const quizWords = favWords
+        .map((fw, idx) => {
+          const full = (fw.cet4Id && WORDS_BY_ID.get(fw.cet4Id)) || WORDS_BY_WORD.get(fw.word.toLowerCase());
+          if (full) return full;
+          return {
+            id: 90000 + idx,
+            level: 0,
+            word: fw.word,
+            phonetic: fw.phonetic || "",
+            pos: fw.pos || "",
+            meaning: fw.meaning || "",
+            tip: "来自个人收藏夹单词",
+            example: "",
+            translation: "",
+            freq: 2
+          };
+        })
+        .slice(0, 15);
+      startQuiz({ mode: "blitz", words: quizWords });
+    });
 
     document.getElementById("btn-fc-prev").addEventListener("click", () => {
       fcIndex -= 1;
@@ -1218,7 +1732,7 @@
         const words = state.mistakeIds.map((id) => WORDS_BY_ID.get(id)).filter(Boolean);
         startQuiz({ mode: "mistakes", words: words.length ? words.slice(0, 15) : shuffle(WORDS).slice(0, 10) });
       } else {
-        startQuiz({ mode: "blitz", words: shuffle(WORDS).slice(0, 10) });
+        startQuiz({ mode: "blitz", words: shuffle(WORDS).slice(0, 15) });
       }
     });
 

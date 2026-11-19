@@ -113,7 +113,10 @@
               <div class="flip-face flip-front">
                 <div class="fc-card-top">
                   <span class="fc-badge" id="fc-level-badge">Lv.1</span>
-                  <span class="fc-freq" id="fc-freq">高频 ★★★</span>
+                  <div class="fc-card-top-right">
+                    <span class="fc-freq" id="fc-freq">高频 ★★★</span>
+                    <button id="btn-fc-fav-front" class="fav-star-btn" type="button" title="收藏单词">☆</button>
+                  </div>
                 </div>
                 <div class="fc-word-main">
                   <div class="fc-word" id="fc-word">abandon</div>
@@ -129,7 +132,10 @@
               <div class="flip-face flip-back">
                 <div class="fc-card-top">
                   <span class="fc-badge" id="fc-back-word">abandon</span>
-                  <button id="btn-fc-speak-back" class="speak-pill small" type="button">🔊</button>
+                  <div class="fc-card-top-right">
+                    <button id="btn-fc-speak-back" class="speak-pill small" type="button">🔊</button>
+                    <button id="btn-fc-fav-back" class="fav-star-btn" type="button" title="收藏单词">☆</button>
+                  </div>
                 </div>
                 <div class="fc-meaning-box">
                   <span class="fc-pos" id="fc-pos">v.</span>
@@ -137,10 +143,17 @@
                 </div>
                 <div class="fc-tip-box" id="fc-tip">搭配：abandon the plan</div>
                 <div class="fc-example-box">
+                  <div class="fc-example-head">
+                    <span class="exam-src-tag" id="fc-example-src">真题例句</span>
+                    <div class="fc-example-btns">
+                      <button id="btn-fc-speak-sent" class="speak-pill mini" type="button">🔊 读句</button>
+                      <button id="btn-fc-fav-sent" class="speak-pill mini" type="button">☆ 藏句</button>
+                    </div>
+                  </div>
                   <div class="fc-example-en" id="fc-example">Never abandon your dreams.</div>
                   <div class="fc-example-zh" id="fc-translation">切勿放弃你的梦想。</div>
                 </div>
-                <div class="fc-tap-hint">再次轻触翻回正面 ↻</div>
+                <div class="fc-tap-hint">点句子中任意单词可查释义 · 轻触空白处翻回正面 ↻</div>
               </div>
             </div>
           </div>
@@ -157,7 +170,25 @@
         <div id="fc-list-stage" class="fc-list-stage hidden"></div>
       </section>
 
-      <!-- View 3: Mistake Book -->
+      <!-- View 3: Favorites (Words & Real Exam Sentences) -->
+      <section id="view-favorites" class="view">
+        <div class="section-header-card">
+          <div>
+            <h2>我的收藏夹</h2>
+            <p id="favorites-summary">随时复习收藏的单词与四级真题金句</p>
+          </div>
+          <button id="btn-practice-favorites" class="btn btn-primary btn-tactile">
+            收藏词闯关 ⚡
+          </button>
+        </div>
+        <div class="fav-subtabs">
+          <button class="chip active" data-favtab="words" id="fav-tab-words">收藏单词 (0)</button>
+          <button class="chip" data-favtab="sentences" id="fav-tab-sentences">收藏句子 (0)</button>
+        </div>
+        <div id="favorites-list" class="word-list-cards"></div>
+      </section>
+
+      <!-- View 4: Mistake Book -->
       <section id="view-mistakes" class="view">
         <div class="section-header-card">
           <div>
@@ -254,6 +285,10 @@
         <span class="nav-icon">🃏</span>
         <span class="nav-label">词卡</span>
       </button>
+      <button class="nav-item" data-view="favorites">
+        <span class="nav-icon">⭐</span>
+        <span class="nav-label">收藏 <em id="nav-fav-badge" class="badge badge-amber hidden">0</em></span>
+      </button>
       <button class="nav-item" data-view="mistakes">
         <span class="nav-icon">📕</span>
         <span class="nav-label">错题 <em id="nav-mistake-badge" class="badge hidden">0</em></span>
@@ -315,7 +350,11 @@
       <div id="quiz-feedback" class="quiz-feedback hidden">
         <div class="fb-top">
           <div class="fb-status" id="fb-status">✓ 回答正确！</div>
-          <button id="fb-speak-btn" class="speak-pill small" type="button">🔊 朗读</button>
+          <div class="fb-top-btns">
+            <button id="fb-speak-btn" class="speak-pill small" type="button">🔊 朗读</button>
+            <button id="fb-fav-word" class="speak-pill small" type="button">☆ 藏词</button>
+            <button id="fb-fav-sent" class="speak-pill small" type="button">☆ 藏句</button>
+          </div>
         </div>
         <div class="fb-word-line">
           <strong id="fb-word">abandon</strong>
@@ -323,6 +362,10 @@
           <span id="fb-meaning">v. 放弃；抛弃</span>
         </div>
         <div class="fb-tip" id="fb-tip"></div>
+        <div class="fb-example-meta">
+          <span class="exam-src-tag" id="fb-example-src">真题例句</span>
+          <span class="tap-hint-inline">点击句中单词可翻译</span>
+        </div>
         <div class="fb-example" id="fb-example"></div>
         <button id="btn-quiz-next" class="btn btn-primary btn-full btn-tactile">继续下一题 →</button>
       </div>
@@ -368,10 +411,32 @@
     </div>
   </div>
 
+  <!-- Interactive Word Lookup Popover -->
+  <div id="word-lookup-pop" class="word-lookup-pop hidden" role="dialog" aria-label="单词点查释义">
+    <div class="wlp-head">
+      <div class="wlp-title">
+        <strong id="wlp-word">word</strong>
+        <span id="wlp-phonetic" class="wlp-phonetic"></span>
+        <span id="wlp-base" class="wlp-base hidden"></span>
+      </div>
+      <div class="wlp-actions">
+        <button id="wlp-speak" class="speak-pill small" type="button">🔊 读</button>
+        <button id="wlp-fav" class="speak-pill small" type="button">☆ 收藏</button>
+        <button id="wlp-add-mistake" class="speak-pill small hidden" type="button">+ 错题</button>
+        <button id="wlp-close" class="wlp-close" type="button" aria-label="关闭">✕</button>
+      </div>
+    </div>
+    <div class="wlp-meaning">
+      <span id="wlp-pos" class="wlp-pos"></span>
+      <span id="wlp-cn"></span>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="toast hidden"></div>
 
   <script src="data/words.js"></script>
+  <script src="data/mini_dict.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
